@@ -2,7 +2,6 @@
 ## **Additional Files You Should Include**
 
 ### **install.sh** (Optional installer)
-```bash
 #!/bin/bash
 
 echo "Installing Wii Game Manager you need git btw..."
