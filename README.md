@@ -7,7 +7,7 @@ Some bash scripts I threw together to manage Wii games for USB Loader GX. Makes 
 - **Organizes my mess**: Takes WBFS files and puts them where USB Loader GX expects them
 - **Moves things automatically**: Grabs games from my Downloads folder and puts them on the USB drive
 - **Shows my collection**: Lists what games I already have
-- **Finds new games**: Opens Vimm's Lair so I can browse
+- **Lets me download games I bought previously (dont pirate)**: Opens Vimm's Lair so I can browse
 - **Asks before deleting**: Won't remove my files unless I say yes
 
 ## Install it
