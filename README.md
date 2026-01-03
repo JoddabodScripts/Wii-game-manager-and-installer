@@ -19,7 +19,7 @@ git clone https://github.com/JoddabodScripts/Wii-game-manager-and-installer.git
 cd Wii-game-manager-and-installer
 ./install.sh
 ```
-
+(if it says permission denied: ./install.sh run sudo chmod 777 install.sh)
 The install script handles everything - making the scripts executable and setting them up in your path.
 
 ## First run setup
