@@ -1,0 +1,529 @@
+#!/bin/bash
+
+# Ultimate Wii WBFS Manager & Converter - /usr/bin/wii
+# Now targeting JWII (your bigger USB drive!)
+# Usage: wii
+
+DOWNLOADS_DIR="$HOME/Downloads"
+SOURCE_DIR="/run/media/joud/JWII/WBFS"
+DEST_DIR="/run/media/joud/JWII/wbfs"
+LOG_FILE="/tmp/wii_manager_$(date +%Y%m%d_%H%M%S).log"
+
+# Simple ASCII art - no colors to avoid issues
+BORDER="╔══════════════════════════════════════════════════════════╗"
+BORDER_MID="║"
+BORDER_BOTTOM="╚══════════════════════════════════════════════════════════╝"
+
+# Logging function
+log() {
+    echo "$1"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG_FILE"
+}
+
+# Show help
+show_help() {
+    echo "$BORDER"
+    echo "$BORDER_MID                WII GAME MANAGER                       $BORDER_MID"
+    echo "$BORDER_MID                =================                       $BORDER_MID"
+    echo "$BORDER_BOTTOM"
+    echo ""
+    echo "USAGE:"
+    echo "  wii                    # Run the full process"
+    echo "  wii --help             # Show this help"
+    echo "  wii --status           # Show current game library status"
+    echo "  wii --clean            # Remove duplicate source files"
+    echo "  wii --paths            # Show current directory paths"
+    echo ""
+    echo "CURRENT PATHS:"
+    echo "  📥 Downloads: $DOWNLOADS_DIR"
+    echo "  📦 Source WBFS: $SOURCE_DIR"
+    echo "  🎮 USB Loader GX: $DEST_DIR"
+    echo "  📝 Log file: $LOG_FILE"
+    echo ""
+    echo "WHAT IT DOES:"
+    echo "  1. 📦 Scans ~/Downloads for new .wbfs files"
+    echo "  2. 🚚 Moves them to JWII/WBFS folder"
+    echo "  3. 🎮 Converts to USB Loader GX format"
+    echo "  4. 📁 Creates: /wbfs/Game Name [GAMEID]/GAMEID.wbfs"
+    echo ""
+    echo "AUTO-WORKFLOW:"
+    echo "  1. Download Wii game to ~/Downloads/"
+    echo "  2. Run: wii"
+    echo "  3. Plug USB (JWII) into Wii (bottom port)"
+    echo "  4. Launch USB Loader GX"
+    echo "  5. 🎉 Play!"
+    echo ""
+    exit 0
+}
+
+# Show current paths
+show_paths() {
+    echo "$BORDER"
+    echo "$BORDER_MID                  CURRENT DIRECTORY PATHS                 $BORDER_MID"
+    echo "$BORDER_BOTTOM"
+    echo ""
+    echo "🎯 TARGETING: JWII (Your bigger USB drive)"
+    echo ""
+    echo "📁 Directory Structure:"
+    echo "  /run/media/joud/JWII/"
+    echo "  ├── 📂 WBFS/           (Source .wbfs files)"
+    echo "  └── 📂 wbfs/           (USB Loader GX organized games)"
+    echo "      └── 📁 Game Name [GAMEID]/"
+    echo "          └── 🎮 GAMEID.wbfs"
+    echo ""
+    echo "📍 Current Paths:"
+    echo "  📥 Downloads:      $DOWNLOADS_DIR"
+    echo "  📦 Source WBFS:    $SOURCE_DIR"
+    echo "  🎮 USB Loader GX:  $DEST_DIR"
+    echo "  📝 Log file:       $LOG_FILE"
+    echo ""
+    echo "💡 Your old WII drive would be at: /run/media/joud/WII/"
+    echo "💡 Your new JWII drive is at:     /run/media/joud/JWII/"
+    echo ""
+    exit 0
+}
+
+# Show library status
+show_status() {
+    echo "$BORDER"
+    echo "$BORDER_MID                  WII GAME LIBRARY STATUS                 $BORDER_MID"
+    echo "$BORDER_BOTTOM"
+    echo ""
+    
+    # Check if wit is installed
+    if ! command -v wit &> /dev/null; then
+        echo "❌ ERROR: 'wit' is not installed!"
+        echo "Install with: sudo pacman -S wit"
+        exit 1
+    fi
+    
+    # Check directories
+    echo "📁 Checking directories for JWII..."
+    if [ ! -d "$SOURCE_DIR" ]; then
+        echo "  ⚠️  WBFS folder not found: $SOURCE_DIR"
+        echo "  💡 Make sure your JWII USB is mounted!"
+    else
+        wbfs_count=$(find "$SOURCE_DIR" -maxdepth 1 \( -name "*.wbfs" -o -name "*.WBFS" \) 2>/dev/null | wc -l)
+        echo "  ✅ WBFS folder: $SOURCE_DIR ($wbfs_count .wbfs files waiting)"
+    fi
+    
+    if [ ! -d "$DEST_DIR" ]; then
+        echo "  ⚠️  USB Loader GX folder not found: $DEST_DIR"
+        echo "  💡 Will be created automatically when you run 'wii'"
+    else
+        game_count=$(find "$DEST_DIR" -name "*.wbfs" -type f 2>/dev/null | wc -l)
+        folder_count=$(find "$DEST_DIR" -maxdepth 1 -type d -name "*[*]*" 2>/dev/null | wc -l)
+        echo "  ✅ USB Loader GX folder: $DEST_DIR ($game_count games in $folder_count folders)"
+    fi
+    
+    # Show games in library
+    if [ -d "$DEST_DIR" ] && [ $game_count -gt 0 ]; then
+        echo ""
+        echo "🎮 Games in your JWII library:"
+        echo "══════════════════════════════════════════════════════"
+        
+        # Look for game folders first (proper structure)
+        found_folders=0
+        find "$DEST_DIR" -maxdepth 1 -type d -name "*[*]*" 2>/dev/null | sort | while read dir; do
+            if [ "$dir" != "$DEST_DIR" ] && [ -d "$dir" ]; then
+                found_folders=1
+                game=$(basename "$dir")
+                size=$(du -sh "$dir" 2>/dev/null | cut -f1)
+                count=$(find "$dir" -name "*.wbfs" -type f 2>/dev/null | wc -l)
+                echo "  🎮 $game ($size, $count file(s))"
+            fi
+        done
+        
+        # If no folders but games exist, show loose files
+        if [ $found_folders -eq 0 ] && [ $game_count -gt 0 ]; then
+            echo "  📄 Games found but not in folders (run 'wii' to organize):"
+            find "$DEST_DIR" -maxdepth 1 -name "*.wbfs" -type f 2>/dev/null | head -5 | while read file; do
+                filename=$(basename "$file")
+                size=$(du -h "$file" 2>/dev/null | cut -f1)
+                echo "    $filename ($size)"
+            done
+        fi
+        
+        echo "══════════════════════════════════════════════════════"
+        echo "📊 Total: $game_count games ready for USB Loader GX"
+    elif [ -d "$DEST_DIR" ] && [ $game_count -eq 0 ]; then
+        echo ""
+        echo "📭 No games found in USB Loader GX folder"
+        echo "💡 Run 'wii' to organize your waiting games"
+    fi
+    
+    # Check Downloads folder
+    echo ""
+    echo "📥 Downloads folder status:"
+    dl_count=$(find "$DOWNLOADS_DIR" -maxdepth 1 \( -name "*.wbfs" -o -name "*.WBFS" \) 2>/dev/null | wc -l)
+    if [ $dl_count -gt 0 ]; then
+        echo "  ⚠️  Found $dl_count .wbfs file(s) in Downloads"
+        echo "  Run 'wii' to process them to your JWII drive!"
+    else
+        echo "  ✅ Downloads folder is clean"
+    fi
+    
+    # Show waiting games in WBFS folder
+    if [ -d "$SOURCE_DIR" ] && [ $wbfs_count -gt 0 ]; then
+        echo ""
+        echo "⏳ Games waiting in WBFS folder:"
+        find "$SOURCE_DIR" -maxdepth 1 \( -name "*.wbfs" -o -name "*.WBFS" \) 2>/dev/null | head -3 | while read file; do
+            filename=$(basename "$file")
+            size=$(du -h "$file" 2>/dev/null | cut -f1)
+            echo "  📦 $filename ($size)"
+        done
+        if [ $wbfs_count -gt 3 ]; then
+            echo "  ... and $((wbfs_count - 3)) more"
+        fi
+        echo "  💡 Run 'wii' to organize these games"
+    fi
+    
+    echo ""
+    echo "💡 Tip: Run 'wii --paths' to see all directory locations"
+    exit 0
+}
+
+# Clean up duplicate source files
+clean_duplicates() {
+    echo "$BORDER"
+    echo "$BORDER_MID               CLEAN DUPLICATE SOURCE FILES               $BORDER_MID"
+    echo "$BORDER_BOTTOM"
+    echo ""
+    echo "🎯 Cleaning duplicates from JWII drive"
+    echo ""
+    
+    if [ ! -d "$SOURCE_DIR" ]; then
+        echo "⚠️  WBFS folder not found: $SOURCE_DIR"
+        echo "💡 Is your JWII USB drive mounted?"
+        exit 0
+    fi
+    
+    removed=0
+    kept=0
+    
+    find "$SOURCE_DIR" \( -name "*.wbfs" -o -name "*.WBFS" \) 2>/dev/null | while read file; do
+        [ -f "$file" ] || continue
+        
+        # Get game ID
+        game_id=$(wit ID6 "$file" 2>/dev/null)
+        [ -z "$game_id" ] && continue
+        
+        # Check if this game already exists in USB Loader GX structure
+        if find "$DEST_DIR" -name "$game_id.wbfs" -type f 2>/dev/null | grep -q .; then
+            echo "  🗑️  Removing duplicate: $(basename "$file") → $game_id already exists"
+            rm "$file"
+            ((removed++))
+        else
+            ((kept++))
+        fi
+    done
+    
+    echo ""
+    echo "📊 Cleanup complete:"
+    echo "  Removed: $removed duplicate file(s)"
+    echo "  Kept: $kept file(s)"
+    echo ""
+    echo "💡 Run 'wii' to organize the remaining files on your JWII drive!"
+    exit 0
+}
+
+# Main conversion function
+convert_to_usbloadergx() {
+    log "🔍 Searching for .wbfs files in JWII WBFS folder..."
+    
+    shopt -s nocaseglob
+    files=("$SOURCE_DIR"/*.wbfs)
+    shopt -u nocaseglob
+    file_count=${#files[@]}
+    
+    if [ "$file_count" -eq 0 ]; then
+        log "🤷 No .wbfs files found to convert!"
+        return 0
+    fi
+    
+    log "🎮 Found $file_count game file(s) to convert"
+    log "🔄 Starting conversion..."
+    
+    processed=0
+    skipped=0
+    failed=0
+    
+    for file in "${files[@]}"; do
+        [ -f "$file" ] || continue
+        
+        base_filename=$(basename "$file")
+        log ""
+        log "══════════════════════════════════════════════════════"
+        log "🔄 Processing: $base_filename"
+        log "   📏 Size: $(du -h "$file" | cut -f1)"
+        
+        # Get game ID
+        game_id=$(wit ID6 "$file" 2>/dev/null)
+        
+        if [ -z "$game_id" ] || [ "$game_id" == "0" ]; then
+            log "   ❌ ERROR: Invalid or corrupt .wbfs file"
+            ((failed++))
+            continue
+        fi
+        
+        log "   🆔 Game ID: $game_id"
+        
+        # Get game title from filename
+        game_title=$(basename "$file" .wbfs | basename "$file" .WBFS)
+        game_title=$(echo "$game_title" | sed -E 's/\([^)]*\)//g')
+        game_title=$(echo "$game_title" | sed 's/\[[^]]*\]//g')
+        game_title=$(echo "$game_title" | sed 's/^\s*//;s/\s*$//')
+        game_title=$(echo "$game_title" | sed 's/[-.\s]*$//')
+        
+        # Fallback titles for common games
+        if [ -z "$game_title" ]; then
+            case "$game_id" in
+                RMCE*|RMCJ*|RMCK*|RMCP*) game_title="Mario Kart Wii" ;;
+                RZDE*) game_title="The Legend of Zelda Skyward Sword" ;;
+                R3BE*) game_title="The Legend of Zelda Twilight Princess" ;;
+                SOUE*) game_title="Super Mario Galaxy" ;;
+                SOUE02*) game_title="Super Mario Galaxy 2" ;;
+                RZBE*) game_title="Super Smash Bros Brawl" ;;
+                SX4E*) game_title="Xenoblade Chronicles" ;;
+                R8BE*) game_title="Metroid Prime Trilogy" ;;
+                RLSE*) game_title="New Super Mario Bros Wii" ;;
+                R96E*) game_title="Donkey Kong Country Returns" ;;
+                RQTE*) game_title="Kirby's Return to Dream Land" ;;
+                RVLE*) game_title="Pikmin 2" ;;
+                *) game_title="Wii Game $game_id" ;;
+            esac
+        fi
+        
+        # Clean title
+        game_title=$(echo "$game_title" | sed 's/[<>:"/\\|?*]//g' | sed 's/\.$//')
+        
+        log "   🎮 Game Title: $game_title"
+        
+        # Create folder
+        folder_name="$game_title [$game_id]"
+        dest_folder="$DEST_DIR/$folder_name"
+        
+        log "   📂 Creating folder: $folder_name"
+        mkdir -p "$dest_folder"
+        
+        # Destination file
+        dest_file="$dest_folder/$game_id.wbfs"
+        
+        # Check if already exists
+        if [ -f "$dest_file" ]; then
+            existing_size=$(du -h "$dest_file" | cut -f1)
+            new_size=$(du -h "$file" | cut -f1)
+            
+            if [ "$existing_size" == "$new_size" ]; then
+                log "   ⚠️  SKIPPED: Already converted (same file)"
+                ((skipped++))
+            else
+                log "   ⚠️  Already exists but different size!"
+                unique_name="${base_filename%.*}_$game_id.${base_filename##*.}"
+                dest_file="$dest_folder/$unique_name"
+                cp "$file" "$dest_file"
+                new_size=$(du -h "$dest_file" | cut -f1)
+                log "   ✅ COPIED (unique): $unique_name ($new_size)"
+                ((processed++))
+            fi
+        else
+            if cp "$file" "$dest_file"; then
+                new_size=$(du -h "$dest_file" | cut -f1)
+                log "   ✅ SUCCESS: $game_id.wbfs ($new_size)"
+                ((processed++))
+            else
+                log "   ❌ ERROR: Copy failed!"
+                ((failed++))
+                rm -f "$dest_file" 2>/dev/null
+            fi
+        fi
+    done
+    
+    log ""
+    log "══════════════════════════════════════════════════════"
+    log "📊 CONVERSION RESULTS:"
+    log "  Successfully converted: $processed"
+    log "  Skipped (already exists): $skipped"
+    log "  Failed: $failed"
+    log "  Total files processed: $file_count"
+    
+    return $processed
+}
+
+# Move files from Downloads to WBFS folder
+move_from_downloads() {
+    log "📦 Checking Downloads folder for .wbfs files..."
+    
+    mkdir -p "$SOURCE_DIR"
+    
+    shopt -s nocaseglob
+    download_files=("$DOWNLOADS_DIR"/*.wbfs)
+    shopt -u nocaseglob
+    download_count=${#download_files[@]}
+    
+    moved_count=0
+    already_exists=0
+    
+    if [ "$download_count" -eq 0 ]; then
+        log "✅ No .wbfs files found in Downloads folder"
+        return 0
+    fi
+    
+    log "🔍 Found $download_count .wbfs file(s) in Downloads"
+    
+    for file in "${download_files[@]}"; do
+        [ -f "$file" ] || continue
+        
+        filename=$(basename "$file")
+        dest_file="$SOURCE_DIR/$filename"
+        
+        log ""
+        log "📄 Processing: $filename"
+        log "   📏 Size: $(du -h "$file" | cut -f1)"
+        
+        if [ -f "$dest_file" ]; then
+            existing_size=$(du -h "$dest_file" | cut -f1)
+            new_size=$(du -h "$file" | cut -f1)
+            
+            if [ "$existing_size" == "$new_size" ]; then
+                log "   ⚠️  Already exists in JWII WBFS folder (same size)"
+                log "   🗑️  Removing from Downloads..."
+                rm "$file"
+                ((already_exists++))
+            else
+                log "   ⚠️  Already exists but different size!"
+                timestamp=$(date +%Y%m%d_%H%M%S)
+                new_filename="${filename%.*}_$timestamp.${filename##*.}"
+                dest_file="$SOURCE_DIR/$new_filename"
+                mv "$file" "$dest_file"
+                log "   🔄 Renamed and moved as: $new_filename"
+                ((moved_count++))
+            fi
+        else
+            mv "$file" "$dest_file"
+            log "   🚚 Moved to JWII WBFS folder"
+            ((moved_count++))
+        fi
+    done
+    
+    log ""
+    log "📊 DOWNLOADS PROCESSING RESULTS:"
+    log "  Moved: $moved_count new file(s)"
+    log "  Skipped: $already_exists existing file(s)"
+    
+    return $moved_count
+}
+
+# Check if JWII drive is mounted
+check_jwii_mounted() {
+    if [ ! -d "/run/media/joud/JWII" ]; then
+        echo "❌ ERROR: JWII drive not found at /run/media/joud/JWII/"
+        echo ""
+        echo "🔍 Please check:"
+        echo "  1. Is your USB drive plugged in?"
+        echo "  2. Is it named 'JWII'? (case sensitive)"
+        echo "  3. Did it mount automatically?"
+        echo ""
+        echo "💡 Try:"
+        echo "  ls /run/media/joud/"
+        echo "  # Should show: JWII"
+        echo ""
+        echo "📌 Your drive should be at: /run/media/joud/JWII/"
+        exit 1
+    fi
+}
+
+# Main function
+main() {
+    echo "$BORDER"
+    echo "$BORDER_MID                WII GAME MANAGER v2.0                     $BORDER_MID"
+    echo "$BORDER_MID                =====================                     $BORDER_MID"
+    echo "$BORDER_MID              🎯 TARGETING: JWII DRIVE                    $BORDER_MID"
+    echo "$BORDER_BOTTOM"
+    echo ""
+    
+    # Check arguments
+    case "$1" in
+        "--help"|"-h")
+            show_help
+            ;;
+        "--status"|"-s")
+            show_status
+            ;;
+        "--clean"|"-c")
+            clean_duplicates
+            ;;
+        "--paths"|"-p")
+            show_paths
+            ;;
+        "")
+            # Continue with normal operation
+            ;;
+        *)
+            echo "❌ Unknown option: $1"
+            echo "Use 'wii --help' for usage information"
+            exit 1
+            ;;
+    esac
+    
+    # Check if JWII is mounted
+    check_jwii_mounted
+    
+    # Check if wit is installed
+    if ! command -v wit &> /dev/null; then
+        echo "❌ ERROR: 'wit' is not installed!"
+        echo "Install it with:"
+        echo "  Ubuntu/Debian: sudo apt install wit"
+        echo "  Arch: sudo pacman -S wit"
+        echo "  Or download from: https://wit.wiimm.de/"
+        exit 1
+    fi
+    
+    echo "✅ JWII drive detected at: /run/media/joud/JWII/"
+    echo ""
+    
+    # Step 1: Move files from Downloads
+    move_from_downloads
+    moved_files=$?
+    
+    # Step 2: Convert to USB Loader GX
+    echo ""
+    convert_to_usbloadergx
+    converted_files=$?
+    
+    # Final summary
+    echo ""
+    echo "══════════════════════════════════════════════════════"
+    echo "🏁 WII MANAGER COMPLETE!"
+    echo "══════════════════════════════════════════════════════"
+    echo ""
+    echo "🎯 All operations completed on your JWII drive!"
+    echo ""
+    
+    if [ $moved_files -gt 0 ] || [ $converted_files -gt 0 ]; then
+        # Show newly added games
+        echo "📋 Recently added to JWII:"
+        echo "══════════════════════════════════════════════════════"
+        find "$DEST_DIR" -maxdepth 1 -type d -name "*[*]*" -mmin -5 2>/dev/null | sort | while read dir; do
+            if [ "$dir" != "$DEST_DIR" ]; then
+                game=$(basename "$dir")
+                size=$(du -sh "$dir" 2>/dev/null | cut -f1)
+                echo "  🎮 $game ($size)"
+            fi
+        done | head -10
+        echo "══════════════════════════════════════════════════════"
+    fi
+    
+    # Show total library count
+    total_games=$(find "$DEST_DIR" -name "*.wbfs" -type f 2>/dev/null | wc -l)
+    echo "📈 Total games on JWII drive: $total_games"
+    echo ""
+    echo "🎮 Your JWII USB is ready! Plug it into Wii (bottom port)"
+    echo "🚀 Launch USB Loader GX and enjoy!"
+    echo ""
+    echo "📝 Log file: $LOG_FILE"
+    echo ""
+}
+
+# Run main function
+main "$@"

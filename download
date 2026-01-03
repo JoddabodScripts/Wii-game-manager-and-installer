@@ -1,0 +1,228 @@
+#!/bin/bash
+
+# Download Script - Complete version with all options
+# Usage: download
+
+VIMM_URL="https://vimm.net/vault/?p=list&system=Wii"
+
+# Show help
+show_help() {
+    echo "╔══════════════════════════════════════════════════════════╗"
+    echo "║                DOWNLOAD SCRIPT - VIMM'S LAIR             ║"
+    echo "╚══════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "USAGE:"
+    echo "  download                    # Open Vimm's Lair Wii list"
+    echo "  download --help             # Show this help"
+    echo "  download --search \"game\"    # Search for specific game"
+    echo "  download --browse           # Browse all Wii games"
+    echo "  download --suggest          # Game recommendations"
+    echo "  download --tools            # Wii homebrew/tools"
+    echo ""
+    echo "💡 CORRECT SEARCH URL:"
+    echo "  https://vimm.net/vault/?p=list&system=Wii&q=searchterm"
+    echo ""
+    echo "WORKFLOW:"
+    echo "  1. download --search \"game name\"  # Find game"
+    echo "  2. Download .wbfs to ~/Downloads/  # Save it"
+    echo "  3. wii                             # Auto-organizes"
+    echo "  4. Play on Wii! 🎮"
+    echo ""
+    exit 0
+}
+
+# CORRECT search function
+search_game() {
+    if [ -z "$1" ]; then
+        echo "❌ Please provide a search term"
+        echo "Usage: download --search \"super mario\""
+        exit 1
+    fi
+    
+    SEARCH_TERM=$(echo "$1" | sed 's/ /+/g')
+    SEARCH_URL="https://vimm.net/vault/?p=list&system=Wii&q=$SEARCH_TERM"
+    
+    echo "╔══════════════════════════════════════════════════════════╗"
+    echo "║                SEARCHING VIMM'S LAIR                     ║"
+    echo "╚══════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "🔍 Searching for: $1"
+    echo "🌐 Opening: $SEARCH_URL"
+    echo ""
+    echo "📝 ON VIMM'S LAIR:"
+    echo "  1. Results show in list view"
+    echo "  2. Click any game to open its page"
+    echo "  3. Look for '.wbfs' download links"
+    echo "  4. Save files to: ~/Downloads/"
+    echo ""
+    
+    # Open browser
+    if command -v xdg-open &> /dev/null; then
+        xdg-open "$SEARCH_URL" 2>/dev/null &
+        echo "✅ Opening in browser..."
+    elif command -v open &> /dev/null; then
+        open "$SEARCH_URL" 2>/dev/null &
+        echo "✅ Opening in browser..."
+    else
+        echo "🌐 Please visit: $SEARCH_URL"
+    fi
+    
+    echo ""
+    echo "🎮 After downloading, run: wii (auto-organizes everything!)"
+    exit 0
+}
+
+# Browse all Wii games
+browse_games() {
+    BROWSE_URL="https://vimm.net/vault/?p=list&system=Wii"
+    
+    echo "╔══════════════════════════════════════════════════════════╗"
+    echo "║                BROWSE ALL WII GAMES                     ║"
+    echo "╚══════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "📚 Opening full Wii games list..."
+    echo ""
+    echo "🌐 URL: $BROWSE_URL"
+    echo ""
+    echo "💡 Tips:"
+    echo "  • Games sorted alphabetically"
+    echo "  • Click any game for details"
+    echo "  • Use browser search (Ctrl+F) to find specific games"
+    echo "  • Download .wbfs files to ~/Downloads/"
+    echo ""
+    
+    if command -v xdg-open &> /dev/null; then
+        xdg-open "$BROWSE_URL" 2>/dev/null &
+        echo "✅ Opening in browser..."
+    elif command -v open &> /dev/null; then
+        open "$BROWSE_URL" 2>/dev/null &
+        echo "✅ Opening in browser..."
+    else
+        echo "🌐 Please visit: $BROWSE_URL"
+    fi
+    
+    exit 0
+}
+
+# Game recommendations
+suggest_games() {
+    echo "╔══════════════════════════════════════════════════════════╗"
+    echo "║               GAME RECOMMENDATIONS                      ║"
+    echo "╚══════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "🎯 TOP PICKS:"
+    echo ""
+    echo "  🏎️  Mario Kart Wii"
+    echo "  ⚾ Wii Sports"
+    echo "  👊 Wii Sports Resort"
+    echo "  🏝️  Super Mario Galaxy"
+    echo "  🌌 Super Mario Galaxy 2"
+    echo "  🍄 New Super Mario Bros. Wii"
+    echo "  ⚔️  The Legend of Zelda: Twilight Princess"
+    echo "  👾 Super Smash Bros. Brawl"
+    echo "  🔫 Metroid Prime Trilogy"
+    echo "  🌌 Xenoblade Chronicles"
+    echo ""
+    echo "🔍 SEARCH COMMANDS:"
+    echo "  download --search \"mario kart\""
+    echo "  download --search \"zelda\""
+    echo "  download --search \"metroid\""
+    echo "  download --browse           # See ALL games"
+    echo ""
+    exit 0
+}
+
+# Open Wii tools/homebrew section
+open_tools() {
+    TOOLS_URL="https://wii.hacks.guide/recommended-homebrew"
+    
+    echo "╔══════════════════════════════════════════════════════════╗"
+    echo "║                WII HOMEBREW & TOOLS                     ║"
+    echo "╚══════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "🛠️  Opening Wii homebrew/tools..."
+    echo ""
+    echo "🔧 Common tools:"
+    echo "  • USB Loader GX"
+    echo "  • Homebrew Channel"
+    echo "  • Nintendont (GameCube)"
+    echo "  • Emulators"
+    echo "  • Save managers"
+    echo ""
+    echo "🌐 URL: $TOOLS_URL"
+    echo ""
+    
+    if command -v xdg-open &> /dev/null; then
+        xdg-open "$TOOLS_URL" 2>/dev/null &
+        echo "✅ Opening in browser..."
+    elif command -v open &> /dev/null; then
+        open "$TOOLS_URL" 2>/dev/null &
+        echo "✅ Opening in browser..."
+    else
+        echo "🌐 Please visit: $TOOLS_URL"
+    fi
+    
+    exit 0
+}
+
+# Main function - open Vimm's Lair
+open_vimm() {
+    echo "╔══════════════════════════════════════════════════════════╗"
+    echo "║                VIMM'S LAIR - WII LIST                   ║"
+    echo "╚══════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "🎮 Opening Wii games list..."
+    echo ""
+    echo "🌐 URL: $VIMM_URL"
+    echo ""
+    echo "💡 Quick commands:"
+    echo "  download --search \"game\"    # Search for specific game"
+    echo "  download --browse           # Browse all games"
+    echo "  download --suggest          # Get recommendations"
+    echo "  download --tools            # Homebrew tools"
+    echo ""
+    
+    if command -v xdg-open &> /dev/null; then
+        xdg-open "$VIMM_URL" 2>/dev/null &
+        echo "✅ Opening in browser..."
+    elif command -v open &> /dev/null; then
+        open "$VIMM_URL" 2>/dev/null &
+        echo "✅ Opening in browser..."
+    else
+        echo "🌐 Please visit: $VIMM_URL"
+    fi
+    
+    exit 0
+}
+
+# Main function
+main() {
+    case "$1" in
+        "--help"|"-h")
+            show_help
+            ;;
+        "--search"|"-s")
+            search_game "$2"
+            ;;
+        "--browse"|"-b")
+            browse_games
+            ;;
+        "--suggest"|"-g")
+            suggest_games
+            ;;
+        "--tools"|"-t")
+            open_tools
+            ;;
+        "")
+            open_vimm
+            ;;
+        *)
+            echo "❌ Unknown option: $1"
+            echo "Use 'download --help' for usage information"
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function
+main "$@"
