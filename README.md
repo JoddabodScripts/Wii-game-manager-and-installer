@@ -55,7 +55,7 @@ wii
    wii --status
    ```
 
-5. **Plug the USB into the Wii and play** 🎮
+5. **Plug the USB into the Wii and play** 
 
 ## Commands I use
 
