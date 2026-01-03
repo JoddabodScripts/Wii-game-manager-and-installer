@@ -14,6 +14,7 @@ Some bash scripts I threw together to manage Wii games for USB Loader GX. Makes 
 
 You'll need git installed first, then just run:
 
+```bash
 git clone https://github.com/JoddabodScripts/Wii-game-manager-and-installer.git
 cd Wii-game-manager-and-installer
 ./install.sh
@@ -25,6 +26,7 @@ The install script handles everything - making the scripts executable and settin
 
 The first time you run `wii`, it'll ask where you keep things:
 
+```bash
 # Run it once
 wii
 
@@ -36,20 +38,20 @@ wii
 ## How I use it
 
 1. **Find a game:**
-
+   ```bash
    download --search "Mario Kart"
    ```
 
 2. **Download it** to my Downloads folder (as a .wbfs file)
 
 3. **Organize it:**
-
+   ```bash
    wii
    ```
    (This moves, renames, and sorts everything automatically)
 
 4. **Check what I've got:**
-
+   ```bash
    wii --status
    ```
 
@@ -58,7 +60,7 @@ wii
 ## Commands I use
 
 ### The main script (`wii`)
-
+```bash
 wii                    # Organize new games
 wii --status          # See what games I have
 wii --config          # Check my current settings
@@ -69,6 +71,7 @@ wii --help           # Remind me what I can do
 ```
 
 ### Finding games (`download`)
+```bash
 download                    # Open Vimm's Lair
 download --search "game"   # Look for something specific
 download --browse          # Scroll through all Wii games
@@ -96,14 +99,14 @@ my-usb-drive/
 
 The script keeps my folder paths in `~/.wii_manager_config`:
 
-
+```bash
 DOWNLOADS_DIR="/where/i/download/stuff"
 SOURCE_DIR="/usb/WBFS"
 DEST_DIR="/usb/wbfs"
 ```
 
 To change them:
-
+```bash
 # Either run this
 wii --reconfigure
 
@@ -113,7 +116,7 @@ nano ~/.wii_manager_config
 
 ## What you need
 
-- Linux (I use Arch)
+- Linux (I use Arch btw)
 - `wit` (Wii ISO Tools) - install script handles this
 - A USB drive formatted as FAT32
 - A Wii with USB Loader GX
@@ -132,6 +135,6 @@ nano ~/.wii_manager_config
 - Vimm's Lair for keeping games available
 - Everyone in the Wii homebrew scene
 
-Enjoy your games! 🎮
+Enjoy your games! 
 
 *Note: Only download games you actually own. Support the people who make games!*
